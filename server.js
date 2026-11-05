@@ -16,7 +16,13 @@ wss.on('connection', (ws) => {
     let m; try { m = JSON.parse(raw); } catch { return; }
     if (m.type !== 'connect' || !m.username) return;
     if (conn) { try { conn.disconnect(); } catch {} }
-    conn = new WebcastPushConnection(m.username.replace('@', '').trim());
+    conn = new WebcastPushConnection(
+  m.username.replace('@', '').trim(),
+  {
+    signProvider: 'https://tiktok-sign.vercel.app/api/sign'
+  }
+);
+
     conn.on('chat', (d) => send({ type: 'chat', user: d.uniqueId, nick: d.nickname, text: d.comment }));
     conn.on('gift', (d) => {
       // الهدايا المتكررة: نرسل عند انتهاء السلسلة فقط
