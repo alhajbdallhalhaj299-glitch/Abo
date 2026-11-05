@@ -28,7 +28,8 @@ wss.on('connection', (ws) => {
       await conn.connect();
       send({ type: 'status', ok: true, msg: 'تم الاتصال بالبث ✅' });
     } catch (e) {
-      send({ type: 'status', ok: false, msg: 'فشل الاتصال: تأكد أن البث شغال والاسم صحيح' });
+      console.error('CONNECT ERROR:', e);
+      send({ type: 'status', ok: false, msg: 'فشل: ' + String((e && (e.message || e.exception && e.exception.message)) || e).slice(0, 200) });
     }
   });
   ws.on('close', () => { try { conn && conn.disconnect(); } catch {} });
