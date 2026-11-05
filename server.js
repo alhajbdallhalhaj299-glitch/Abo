@@ -16,10 +16,15 @@ wss.on('connection', (ws) => {
     let m; try { m = JSON.parse(raw); } catch { return; }
     if (m.type !== 'connect' || !m.username) return;
     if (conn) { try { conn.disconnect(); } catch {} }
-    conn = new WebcastPushConnection(
+  {conn = new WebcastPushConnection(
   m.username.replace('@', '').trim(),
   {
-    signProvider: 'https://tiktok-sign.vercel.app/api/sign'
+    enableExtendedGiftInfo: true,
+    processInitialData: true
+  }
+);
+
+     
   }
 );
 
