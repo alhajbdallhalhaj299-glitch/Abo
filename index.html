@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ألعاب تيك توك لايف</title>
+<style>
+:root{--bg:#0f0f1a;--card:#1c1c2e;--tx:#fff;--a:#fe2c55;--b:#25f4ee;--g:#7CFC9A}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,sans-serif;padding:10px;max-width:520px;margin:auto}
+.card{background:var(--card);border-radius:14px;padding:12px;margin-bottom:10px}
+input,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid #333;background:#11111c;color:#fff;font-size:16px;margin:4px 0}
+button{padding:12px;border:0;border-radius:10px;font-size:16px;font-weight:bold;color:#fff;background:var(--a);cursor:pointer}
+button.b{background:#2a6df4}button.g{background:#1faa59}button.s{background:#444}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.tabs{display:flex;gap:6px;margin-bottom:10px}.tabs button{flex:1;background:#2a2a40;font-size:14px;padding:10px 4px}
+.tabs button.on{background:var(--a)}
+.bar{height:34px;background:#2a2a40;border-radius:17px;overflow:hidden;margin:6px 0}
+.bar div{height:100%;display:flex;align-items:center;padding:0 12px;font-weight:bold;transition:width .3s;min-width:40px;white-space:nowrap}
+#st{font-size:13px;opacity:.8}
+#log{max-height:110px;overflow:auto;font-size:13px;opacity:.85}
+.big{font-size:26px;text-align:center;font-weight:bold;padding:14px;word-break:break-word}
+.win{color:var(--g)}
+.hide{display:none}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <input id="host" placeholder="اسم حسابك في تيك توك (بدون @)">
+  <input id="srv" placeholder="رابط السيرفر (اتركه فارغ إذا نفس الموقع)">
+  <div class="row">
+    <button class="b" onclick="connect()">اتصال بالبث</button>
+    <button class="s" onclick="demo()">تجربة وهمية</button>
+  </div>
+  <div id="st">غير متصل</div>
+  <div id="log"></div>
+</div>
+
+<div class="tabs">
+  <button class="on" onclick="tab('race',this)">🏁 السباق</button>
+  <button onclick="tab('draw',this)">🎁 السحب</button>
+  <button onclick="tab('quiz',this)">❓ الأسئلة</button>
+</div>
+
+<!-- سباق الفرق -->
+<div id="race" class="card">
+  <div class="row">
+    <input id="w1" value="احمر" placeholder="كلمة الفريق 1">
+    <input id="w2" value="ازرق" placeholder="كلمة الفريق 2">
+  </div>
+  <div class="row">
+    <input id="goal" type="number" value="100" placeholder="النقاط للفوز">
+    <input id="gp" type="number" value="5" placeholder="نقاط الهدية">
+  </div>
+  <div class="bar"><div id="b1" style="background:#e53935;width:0">0</div></div>
+  <div class="bar"><div id="b2" style="background:#1e88e5;width:0">0</div></div>
+  <div id="rmsg" class="big"></div>
+  <div class="row"><button class="g" onclick="raceStart()">ابدأ</button><button class="s" onclick="raceReset()">إعادة</button></div>
+  <small>كل مشاهد يكتب كلمة فريقه للانضمام، وبعدها كل تعليق منه = نقطة، والهدية = نقاط إضافية.</small>
+</div>
+
+<!-- السحب -->
+<div id="draw" class="card hide">
+  <input id="kw" placeholder="كلمة المشاركة (اختياري، فارغ = أي تعليق)">
+  <div class="big" id="dc">0 مشارك</div>
+  <div class="big win" id="dw"></div>
+  <div class="row"><button class="g" onclick="drawOpen()">فتح المشاركة</button><button onclick="drawPick()">اسحب فائز 🎉</button></div>
+  <button class="s" style="width:100%;margin-top:8px" onclick="drawReset()">تفريغ</button>
+</div>
+
+<!-- الأسئلة -->
+<div id="quiz" class="card hide">
+  <textarea id="qs" rows="5" placeholder="سؤال | إجابة (كل سطر سؤال)">عاصمة السودان؟ | الخرطوم
+كم عدد ايام الاسبوع؟ | 7
+اكبر كوكب في المجموعة الشمسية؟ | المشتري</textarea>
+  <div class="big" id="qq">—</div>
+  <div class="big win" id="qw"></div>
+  <div class="row"><button class="g" onclick="quizNext()">السؤال التالي</button><button class="s" onclick="quizSkip()">تخطي</button></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const norm=s=>(s||'').toLowerCase().replace(/[\u064B-\u0652ـ]/g,'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/[^\p{L}\p{N}]/gu,'');
+let mode='race',ws=null;
+const R={on:false,team:{},sc:[0,0]};
+const D={open:false,pool:new Map()};
+const Q={i:0,ans:null,list:[]};
+
+function tab(n,b){mode=n;['race','draw','quiz'].forEach(x=>$(x).classList.toggle('hide',x!==n));
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on')}
+
+function connect(){
+  const u=$('host').value.trim();if(!u)return alert('اكتب اسم الحساب');
+  let s=$('srv').value.trim();
+  const url=s?s.replace(/^http/,'ws'):(location.protocol==='https:'?'wss://':'ws://')+location.host;
+  if(ws)ws.close();
+  $('st').textContent='جاري الاتصال...';
+  ws=new WebSocket(url);
+  ws.onopen=()=>ws.send(JSON.stringify({type:'connect',username:u}));
+  ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==='status')$('st').textContent=m.msg;else handle(m)};
+  ws.onclose=()=>$('st').textContent='انقطع الاتصال بالسيرفر';
+  ws.onerror=()=>$('st').textContent='تعذر الوصول للسيرفر';
+}
+
+function handle(m){
+  $('log').innerHTML=`<div>${m.type==='gift'?'🎁':'💬'} <b>${esc(m.nick||m.user)}</b>: ${esc(m.type==='gift'?m.gift+' ×'+m.count:m.text)}</div>`+$('log').innerHTML.slice(0,1500);
+  if(mode==='race')raceMsg(m);
+  if(mode==='draw'&&m.type==='chat'&&D.open){const k=norm($('kw').value);if(!k||norm(m.text).includes(k)){D.pool.set(m.user,m.nick||m.user);$('dc').textContent=D.pool.size+' مشارك'}}
+  if(mode==='quiz'&&m.type==='chat'&&Q.ans&&norm(m.text)===Q.ans){Q.ans=null;$('qw').textContent='🏆 '+(m.nick||m.user)+' أجاب أولاً!'}
+}
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+// ---- سباق ----
+function raceStart(){raceReset();R.on=true;$('rmsg').textContent='انطلق السباق!'}
+function raceReset(){R.on=false;R.team={};R.sc=[0,0];$('rmsg').textContent='';draw()}
+function raceMsg(m){
+  if(!R.on)return;
+  if(m.type==='chat'){
+    const t=norm(m.text);
+    if(t===norm($('w1').value))R.team[m.user]=0;
+    else if(t===norm($('w2').value))R.team[m.user]=1;
+    else if(R.team[m.user]!=null)R.sc[R.team[m.user]]++;
+  }else if(R.team[m.user]!=null){R.sc[R.team[m.user]]+=(m.count||1)*(+$('gp').value||5)}
+  draw();
+  const g=+$('goal').value||100;
+  if(R.sc[0]>=g||R.sc[1]>=g){R.on=false;$('rmsg').innerHTML='<span class="win">🏆 فاز الفريق '+(R.sc[0]>=g?$('w1').value:$('w2').value)+'</span>'}
+}
+function draw(){const g=+$('goal').value||100;
+  [0,1].forEach(i=>{const e=$('b'+(i+1));e.style.width=Math.max(12,Math.min(100,R.sc[i]/g*100))+'%';e.textContent=$('w'+(i+1)).value+' : '+R.sc[i]})}
+
+// ---- سحب ----
+function drawOpen(){D.open=true;$('dw').textContent=''}
+function drawReset(){D.open=false;D.pool.clear();$('dc').textContent='0 مشارك';$('dw').textContent=''}
+function drawPick(){
+  const a=[...D.pool.values()];if(!a.length)return alert('ما في مشاركين');
+  D.open=false;let n=0;
+  const t=setInterval(()=>{$('dw').textContent=a[Math.floor(Math.random()*a.length)];
+    if(++n>20){clearInterval(t);$('dw').textContent='🎉 '+a[Math.floor(Math.random()*a.length)]}},90)
+}
+
+// ---- أسئلة ----
+function quizNext(){
+  Q.list=$('qs').value.split('\n').map(l=>l.split('|').map(x=>x.trim())).filter(x=>x[1]);
+  if(!Q.list.length)return alert('اكتب سؤال | إجابة');
+  const [q,a]=Q.list[Q.i++%Q.list.length];
+  $('qq').textContent=q;Q.ans=norm(a);$('qw').textContent='';
+}
+function quizSkip(){Q.ans=null;$('qq').textContent='—';$('qw').textContent=''}
+
+// ---- تجربة وهمية ----
+function demo(){
+  $('st').textContent='وضع التجربة 🧪';
+  const names=['أحمد','سارة','علي','منى','خالد','ريم','عمر','هبة'];
+  const words=[$('w1').value,$('w2').value,'مرحبا','الخرطوم','7','المشتري',$('kw').value||'انا'];
+  setInterval(()=>{const n=names[Math.random()*names.length|0];
+    if(Math.random()<.12)handle({type:'gift',user:n,nick:n,gift:'Rose',count:1+(Math.random()*3|0)});
+    else handle({type:'chat',user:n,nick:n,text:words[Math.random()*words.length|0]})},700);
+}
+draw();
+</script>
+</body>
+</html>
