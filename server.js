@@ -44,10 +44,30 @@ wss.on('connection', (ws) => {
     if (conn) { try { conn.disconnect(); } catch {} }
     conn = new TikTokLiveConnection(m.username.replace('@', '').trim(), KEY ? { signApiKey: KEY } : {});
 
-    conn.on('chat', (d) => {
-      const u = d.user || d;
-      send({ type: 'chat', user: u.uniqueId, nick: u.nickname, text: d.comment });
-    });
+conn.on('chat', (d) => {
+  const u = d.user || d;
+
+  const comment = [
+    d.comment,
+    d.text,
+    d.content,
+    d.message
+  ].find(v => typeof v === 'string' && v.trim());
+
+  console.log('CHAT EVENT:', {
+    keys: Object.keys(d || {}),
+    comment
+  });
+
+  send({
+    type: 'chat',
+    user: u.uniqueId || u.unique_id || u.nickname || 'viewer',
+    nick: u.nickname || u.uniqueId || 'مشاهد',
+    text: comment || ''
+  });
+});
+
+    
     conn.on('gift', (d) => {
       if (d.giftType === 1 && !d.repeatEnd) return; // سلسلة هدايا لسه شغالة
       const u = d.user || d;
