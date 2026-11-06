@@ -4,7 +4,11 @@ const { WebSocketServer } = require('ws');
 const tlc = require('tiktok-live-connector');
 const { WebcastPushConnection } = tlc;
 const KEY = process.env.EULER_API_KEY || '';
-if (KEY && tlc.SignConfig) tlc.SignConfig.apiKey = KEY;
+if (KEY) {
+  if (tlc.SignConfig) tlc.SignConfig.apiKey = KEY;
+  try { tlc.signatureProvider.config.extraParams.apiKey = KEY; } catch (e) {}
+}
+console.log('Euler key present:', !!KEY);
 
 const app = express();
 app.use(express.static(__dirname));
