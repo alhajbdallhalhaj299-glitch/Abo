@@ -63,7 +63,7 @@ conn.on('chat', (d) => {
     type: 'chat',
     user: u.uniqueId || u.unique_id || u.nickname || 'viewer',
     nick: u.nickname || u.uniqueId || 'مشاهد',
-    text: comment || ''
+    text: comment || '',
   });
 });
 
