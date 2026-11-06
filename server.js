@@ -1,7 +1,10 @@
 const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
-const { WebcastPushConnection } = require('tiktok-live-connector');
+const tlc = require('tiktok-live-connector');
+const { WebcastPushConnection } = tlc;
+const KEY = process.env.EULER_API_KEY || '';
+if (KEY && tlc.SignConfig) tlc.SignConfig.apiKey = KEY;
 
 const app = express();
 app.use(express.static(__dirname));
@@ -16,18 +19,7 @@ wss.on('connection', (ws) => {
     let m; try { m = JSON.parse(raw); } catch { return; }
     if (m.type !== 'connect' || !m.username) return;
     if (conn) { try { conn.disconnect(); } catch {} }
-  {conn = new WebcastPushConnection(
-  m.username.replace('@', '').trim(),
-  {
-    enableExtendedGiftInfo: true,
-    processInitialData: true
-  }
-);
-
-     
-  }
-);
-
+    conn = new WebcastPushConnection(m.username.replace('@', '').trim(), KEY ? { signApiKey: KEY } : {});
     conn.on('chat', (d) => send({ type: 'chat', user: d.uniqueId, nick: d.nickname, text: d.comment }));
     conn.on('gift', (d) => {
       // الهدايا المتكررة: نرسل عند انتهاء السلسلة فقط
