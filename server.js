@@ -10,6 +10,9 @@ if (KEY) {
 }
 console.log('Euler key present:', !!KEY);
 
+process.on('uncaughtException', (e) => console.error('UNCAUGHT:', e));
+process.on('unhandledRejection', (e) => console.error('UNHANDLED:', e));
+
 const app = express();
 app.use(express.static(__dirname));
 const server = http.createServer(app);
@@ -30,6 +33,7 @@ wss.on('connection', (ws) => {
       if (d.giftType === 1 && !d.repeatEnd) return;
       send({ type: 'gift', user: d.uniqueId, nick: d.nickname, gift: d.giftName, count: d.repeatCount || 1, diamonds: d.diamondCount || 1 });
     });
+    conn.on('error', (e) => { console.error('CONN ERROR:', e); send({ type: 'status', ok: false, msg: 'خطأ: ' + String((e && e.message) || e).slice(0, 200) }); });
     conn.on('disconnected', () => send({ type: 'status', ok: false, msg: 'انقطع الاتصال' }));
     try {
       await conn.connect();
