@@ -25,3 +25,46 @@ const errText = (e) => String((e && (e.message || e.exception?.message)) || e).s
 
 wss.on('connection', (ws) => {
   let conn = null;
+  const send = (o) => ws.readyState === 1 && ws.send(JSON.stringify(o));
+
+  ws.on('message', async (raw) => {
+    let m;
+    try { m = JSON.parse(raw); } catch { return; }
+    if (m.type !== 'connect' || !m.username) return;
+
+    if (conn) { try { conn.disconnect(); } catch {} }
+    conn = new TikTokLiveConnection(m.username.replace('@', '').trim(), KEY ? { signApiKey: KEY } : {});
+
+    conn.on('chat', (d) => {
+      const u = d.user || d;
+      send({ type: 'chat', user: u.uniqueId, nick: u.nickname, text: d.comment });
+    });
+    conn.on('gift', (d) => {
+      if (d.giftType === 1 && !d.repeatEnd) return; // سلسلة هدايا لسه شغالة
+      const u = d.user || d;
+      send({
+        type: 'gift', user: u.uniqueId, nick: u.nickname,
+        gift: d.giftName || d.giftDetails?.giftName || 'gift',
+        count: d.repeatCount || 1,
+        diamonds: d.diamondCount || d.giftDetails?.diamondCount || 1
+      });
+    });
+    conn.on('disconnected', () => send({ type: 'status', ok: false, msg: 'انقطع الاتصال بالبث' }));
+    conn.on('error', (e) => {
+      console.error('CONN ERROR:', e);
+      send({ type: 'status', ok: false, msg: 'خطأ: ' + errText(e) });
+    });
+
+    try {
+      await conn.connect();
+      send({ type: 'status', ok: true, msg: 'تم الاتصال بالبث ✅' });
+    } catch (e) {
+      console.error('CONNECT ERROR:', e);
+      send({ type: 'status', ok: false, msg: 'فشل: ' + errText(e) });
+    }
+  });
+
+  ws.on('close', () => { try { conn && conn.disconnect(); } catch {} });
+});
+
+server.listen(process.env.PORT || 3000, () => console.log('Running'));
