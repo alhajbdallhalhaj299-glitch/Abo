@@ -103,12 +103,43 @@ function connect(){
   ws.onerror=()=>$('st').textContent='تعذر الوصول للسيرفر';
 }
 
-function handle(m){
-  $('log').innerHTML=`<div>${m.type==='gift'?'🎁':'💬'} <b>${esc(m.nick||m.user)}</b>: ${esc(m.type==='gift'?m.gift+' ×'+m.count:m.text)}</div>`+$('log').innerHTML.slice(0,1500);
-  if(mode==='race')raceMsg(m);
-  if(mode==='draw'&&m.type==='chat'&&D.open){const k=norm($('kw').value);if(!k||norm(m.text).includes(k)){D.pool.set(m.user,m.nick||m.user);$('dc').textContent=D.pool.size+' مشارك'}}
-  if(mode==='quiz'&&m.type==='chat'&&Q.ans&&norm(m.text)===Q.ans){Q.ans=null;$('qw').textContent='🏆 '+(m.nick||m.user)+' أجاب أولاً!'}
+function handle(m) {
+  const user = String(m.user || m.uniqueId || m.nick || 'مشاهد');
+  const nick = String(m.nick || user);
+  const text = String(m.text || m.comment || m.content || '').trim();
+
+  // عرض التعليقات والهدايا كاملة
+  const message = m.type === 'gift'
+    ? `${m.gift || 'هدية'} ×${m.count || 1}`
+    : text || 'تعليق بدون نص';
+
+  $('log').innerHTML =
+    `<div>${m.type === 'gift' ? '🎁' : '💬'} <b>${esc(nick)}</b>: ${esc(message)}</div>` +
+    $('log').innerHTML.slice(0, 1500);
+
+  // السباق يعمل حتى لو تبويب آخر مفتوح
+  if (m.type === 'chat' || m.type === 'gift') {
+    raceMsg({ ...m, user, nick, text });
+  }
+
+  // السحب يستقبل المشاركين دائماً عند فتح المشاركة
+  if (m.type === 'chat' && D.open) {
+    const k = norm($('kw').value);
+    if (!k || norm(text).includes(k)) {
+      D.pool.set(user, nick);
+      $('dc').textContent = D.pool.size + ' مشارك';
+    }
+  }
+
+  // الأسئلة تستقبل الإجابات حتى لو تبويب آخر مفتوح
+  if (m.type === 'chat' && Q.ans && text) {
+    if (norm(text) === Q.ans) {
+      Q.ans = null;
+      $('qw').textContent = '🏆 ' + nick + ' أجاب أولاً!';
+    }
+  }
 }
+د
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
 // ---- سباق ----
