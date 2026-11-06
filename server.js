@@ -9,7 +9,16 @@ const TikTokLiveConnection = tlc.TikTokLiveConnection || tlc.WebcastPushConnecti
 const SignConfig = tlc.SignConfig;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const KEY = (process.env.EULER_API_KEY || '').trim();
+function findKey() {
+  const direct = (process.env.EULER_API_KEY || '').trim();
+  if (direct) return direct;
+  for (const [k, v] of Object.entries(process.env)) {
+    if (/^euler_[A-Za-z0-9]{20,}$/.test((v || '').trim())) return v.trim(); // المفتاح في خانة القيمة
+    if (/^euler_[A-Za-z0-9]{20,}$/.test(k)) return k;                     // المفتاح اتكتب في خانة الاسم
+  }
+  return '';
+}
+const KEY = findKey();
 if (KEY && SignConfig) SignConfig.apiKey = KEY;
 console.log('Euler key present:', !!KEY);
 
