@@ -3,11 +3,14 @@ import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
-import { TikTokLiveConnection, SignConfig } from 'tiktok-live-connector';
+import * as tlcNs from 'tiktok-live-connector';
+const tlc = (tlcNs.TikTokLiveConnection || !tlcNs.default) ? tlcNs : tlcNs.default;
+const TikTokLiveConnection = tlc.TikTokLiveConnection || tlc.WebcastPushConnection;
+const SignConfig = tlc.SignConfig;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const KEY = (process.env.EULER_API_KEY || '').trim();
-if (KEY) SignConfig.apiKey = KEY;
+if (KEY && SignConfig) SignConfig.apiKey = KEY;
 console.log('Euler key present:', !!KEY);
 
 process.on('uncaughtException', (e) => console.error('UNCAUGHT:', e));
@@ -22,6 +25,3 @@ const errText = (e) => String((e && (e.message || e.exception?.message)) || e).s
 
 wss.on('connection', (ws) => {
   let conn = null;
-  const send = (o) => ws.readyState === 1 && ws.send(JSON.stringify(o));
-
-  ws.on('message', async (raw) => {
